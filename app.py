@@ -54,19 +54,18 @@ st.markdown(
     <style>
     .block-container { padding-top: 1.5rem; }
     div[data-testid="stMetric"] {
-        border: 1px solid #e4e7ec;
+        border: 1px solid rgba(150, 150, 150, 0.2); /* Semi-transparent border works in both modes */
         border-radius: 8px;
         padding: 12px 14px;
-        background: #ffffff;
+        background-color: var(--secondary-background-color); /* Automatically adapts */
     }
     div[data-testid="stMetric"] label {
-        color: #475467;
+        color: var(--text-color); /* Automatically adapts */
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
-
 
 
 
