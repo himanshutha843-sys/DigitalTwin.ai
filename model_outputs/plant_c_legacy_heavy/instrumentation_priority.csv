@@ -1,0 +1,32 @@
+Station_ID,Process_Area,Operation,Missing_Rate,Importance_Weight,Priority_Score,Recommended_Sensor,Estimated_Cost_Tier
+ST-18,Paint,Paint quality gate,1.0,0.057778973592780405,0.08666846038917062,Temperature Probe,low
+ST-22,Paint,Basecoat booth,1.0,0.057778973592780405,0.08089056302989256,Temperature Probe,low
+ST-19,Paint,E-coat inspection,1.0,0.057778973592780405,0.07800161435025356,Computer Vision Camera,high
+ST-20,Paint,Primer booth,1.0,0.057778973592780405,0.07800161435025356,Temperature Probe,low
+ST-16,Body,Door fit check,1.0,0.03877819100368541,0.07755638200737082,Computer Vision Camera,high
+ST-27,Paint,Oven cure,1.0,0.057778973592780405,0.07511266567061453,Temperature Probe,low
+ST-36,Final Assembly,End-of-line quality,1.0,0.05,0.0725,Computer Vision Camera,high
+ST-24,Paint,Paint quality gate,1.0,0.057778973592780405,0.0722237169909755,Temperature Probe,low
+ST-44,Final Assembly,Battery connect,1.0,0.05,0.0675,Standard Cycle-Time Gateway,low
+ST-29,Final Assembly,ADAS calibration,1.0,0.05,0.065,Standard Cycle-Time Gateway,low
+ST-34,Final Assembly,Wheel torque,1.0,0.05,0.065,Torque/Current Sensor,medium
+ST-43,Final Assembly,Powertrain marriage,1.0,0.05,0.065,Vibration Sensor,medium
+ST-05,Body,Dimensional clamp,1.0,0.03877819100368541,0.062045105605896655,Standard Cycle-Time Gateway,low
+ST-41,Final Assembly,ADAS calibration,1.0,0.05,0.06,Standard Cycle-Time Gateway,low
+ST-39,Final Assembly,Interior fit,1.0,0.05,0.057499999999999996,Standard Cycle-Time Gateway,low
+ST-04,Body,Door fit check,1.0,0.03877819100368541,0.05622837695534384,Computer Vision Camera,high
+ST-32,Final Assembly,Battery connect,1.0,0.05,0.05500000000000001,Standard Cycle-Time Gateway,low
+ST-42,Final Assembly,End-of-line quality,1.0,0.05,0.05500000000000001,Computer Vision Camera,high
+ST-37,Final Assembly,Powertrain marriage,1.0,0.05,0.05500000000000001,Vibration Sensor,medium
+ST-38,Final Assembly,Battery connect,1.0,0.05,0.052500000000000005,Standard Cycle-Time Gateway,low
+ST-33,Final Assembly,Interior fit,1.0,0.05,0.052500000000000005,Standard Cycle-Time Gateway,low
+ST-02,Body,Side-frame marriage,1.0,0.03877819100368541,0.050411648304791036,Vibration Sensor,medium
+ST-03,Body,Roof laser weld,1.0,0.03877819100368541,0.04847273875460676,Torque/Current Sensor,medium
+ST-08,Body,Side-frame marriage,1.0,0.03877819100368541,0.04653382920442249,Vibration Sensor,medium
+ST-09,Body,Roof laser weld,1.0,0.03877819100368541,0.04653382920442249,Torque/Current Sensor,medium
+ST-11,Body,Dimensional clamp,1.0,0.03877819100368541,0.044594919654238216,Standard Cycle-Time Gateway,low
+ST-06,Body,Seam sealing prep,1.0,0.03877819100368541,0.044594919654238216,Standard Cycle-Time Gateway,low
+ST-10,Body,Door fit check,1.0,0.03877819100368541,0.044594919654238216,Computer Vision Camera,high
+ST-13,Body,Underbody weld,1.0,0.03877819100368541,0.044594919654238216,Torque/Current Sensor,medium
+ST-14,Body,Side-frame marriage,1.0,0.03877819100368541,0.042656010104053954,Vibration Sensor,medium
+ST-01,Body,Underbody weld,1.0,0.03877819100368541,0.042656010104053954,Torque/Current Sensor,medium

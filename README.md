@@ -36,6 +36,7 @@ app.py
     |-- Supervisor View
     |-- Plant Manager View
     |-- Leadership View
+    |-- Fleet Rollup
 ```
 
 ## What the Prototype Demonstrates
@@ -119,6 +120,14 @@ Then open the local Streamlit URL shown in the terminal, usually:
 http://localhost:8501
 ```
 
+## Multi-Site Simulation
+
+To demonstrate that this architecture scales across sites with varying levels of instrumentation maturity, you can run the multi-site simulator. It runs the pipeline across three generated site profiles (High Instrumentation, Mixed, and Legacy-Heavy).
+
+```powershell
+python run_all_sites.py
+```
+
 ## Dashboard Views
 
 ### Supervisor View
@@ -140,13 +149,18 @@ http://localhost:8501
 - Estimated annual cost savings from targeted defect prevention.
 - False-alarm threshold tradeoff for alert governance.
 
+### Fleet Rollup
+
+- Side-by-side comparison across sites with different instrumentation maturity.
+- Aggregated OEE, defect rate, model performance (ROC-AUC), and conservative annual savings.
+
 ## Business Proposal
 
 See [BUSINESS_PROPOSAL.md](BUSINESS_PROPOSAL.md) for the full business case, rollout plan, target-user value propositions, data-gap strategy, and risk mitigations.
 
 ## Demo Video
 
-[Link to Demo Video]
+<!-- TODO: paste final video URL here -->
 
 ## Notes for Judges
 

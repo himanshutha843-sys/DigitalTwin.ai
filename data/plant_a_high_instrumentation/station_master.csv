@@ -1,0 +1,46 @@
+Station_ID,Station_Number,Process_Area,Operation,Sensor_Coverage,Baseline_Cycle_Time,Is_Quality_Gate,PLC_Integration_Mode,Maintenance_Window_Required_For_Changes
+ST-01,1,Body,Underbody weld,modern,65.52,False,read_only,True
+ST-02,2,Body,Side-frame marriage,partial,67.75,False,read_only,True
+ST-03,3,Body,Roof laser weld,manual_check,54.24,False,read_only,True
+ST-04,4,Body,Door fit check,legacy,64.64,False,read_only,True
+ST-05,5,Body,Dimensional clamp,modern,63.92,False,read_only,True
+ST-06,6,Body,Seam sealing prep,legacy,68.4,False,read_only,True
+ST-07,7,Body,Underbody weld,legacy,64.33,False,read_only,True
+ST-08,8,Body,Side-frame marriage,modern,66.34,False,read_only,True
+ST-09,9,Body,Roof laser weld,modern,65.84,False,read_only,True
+ST-10,10,Body,Door fit check,partial,68.39,False,read_only,True
+ST-11,11,Body,Dimensional clamp,modern,63.08,False,read_only,True
+ST-12,12,Body,Seam sealing prep,modern,70.11,False,read_only,True
+ST-13,13,Body,Underbody weld,modern,61.86,False,read_only,True
+ST-14,14,Body,Side-frame marriage,modern,66.66,False,read_only,True
+ST-15,15,Body,Roof laser weld,modern,66.06,False,read_only,True
+ST-16,16,Body,Door fit check,manual_check,74.71,False,read_only,True
+ST-17,17,Paint,Clearcoat booth,modern,84.41,False,read_only,True
+ST-18,18,Paint,Paint quality gate,modern,92.31,False,read_only,True
+ST-19,19,Paint,E-coat inspection,modern,87.2,False,read_only,True
+ST-20,20,Paint,Primer booth,partial,82.23,False,read_only,True
+ST-21,21,Paint,Oven cure,legacy,93.2,False,read_only,True
+ST-22,22,Paint,Basecoat booth,modern,79.8,False,read_only,True
+ST-23,23,Paint,Clearcoat booth,legacy,83.34,False,read_only,True
+ST-24,24,Paint,Paint quality gate,modern,88.82,False,read_only,True
+ST-25,25,Paint,E-coat inspection,modern,94.1,False,read_only,True
+ST-26,26,Paint,Primer booth,modern,92.75,False,read_only,True
+ST-27,27,Paint,Oven cure,partial,90.02,False,read_only,True
+ST-28,28,Paint,Basecoat booth,legacy,77.8,False,read_only,True
+ST-29,29,Final Assembly,ADAS calibration,partial,69.18,False,read_only,True
+ST-30,30,Final Assembly,End-of-line quality,modern,70.35,False,read_only,True
+ST-31,31,Final Assembly,Powertrain marriage,modern,66.81,False,read_only,True
+ST-32,32,Final Assembly,Battery connect,legacy,61.9,False,read_only,True
+ST-33,33,Final Assembly,Interior fit,partial,72.98,False,read_only,True
+ST-34,34,Final Assembly,Wheel torque,modern,76.27,False,read_only,True
+ST-35,35,Final Assembly,ADAS calibration,modern,69.91,False,read_only,True
+ST-36,36,Final Assembly,End-of-line quality,modern,77.15,False,read_only,True
+ST-37,37,Final Assembly,Powertrain marriage,modern,64.35,False,read_only,True
+ST-38,38,Final Assembly,Battery connect,modern,66.48,False,read_only,True
+ST-39,39,Final Assembly,Interior fit,partial,72.85,False,read_only,True
+ST-40,40,Final Assembly,Wheel torque,legacy,69.44,False,read_only,True
+ST-41,41,Final Assembly,ADAS calibration,modern,75.75,False,read_only,True
+ST-42,42,Final Assembly,End-of-line quality,modern,74.74,False,read_only,True
+ST-43,43,Final Assembly,Powertrain marriage,modern,69.82,False,read_only,True
+ST-44,44,Final Assembly,Battery connect,modern,64.82,False,read_only,True
+ST-45,45,Final Assembly,Interior fit,modern,69.18,True,read_only,True

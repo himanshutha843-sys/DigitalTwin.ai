@@ -28,6 +28,7 @@ from pandas.api.types import is_numeric_dtype
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
 from sklearn.impute import SimpleImputer
+from sklearn.calibration import calibration_curve
 from sklearn.metrics import average_precision_score, classification_report, roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
@@ -61,7 +62,7 @@ def make_one_hot_encoder() -> OneHotEncoder:
         return OneHotEncoder(handle_unknown="ignore", sparse=False)
 
 
-def ensure_data_exists(data_dir: Path = DATA_DIR) -> None:
+def ensure_data_exists(data_dir: Path = DATA_DIR, site_id: str | None = None) -> None:
     """Generate synthetic data if the expected CSV files are missing."""
     required = [
         data_dir / "station_master.csv",
@@ -81,27 +82,32 @@ def ensure_data_exists(data_dir: Path = DATA_DIR) -> None:
         generate_vehicle_contexts,
         simulate_station_events,
         write_outputs,
+        SITE_PROFILES,
     )
+    
+    site_profile = SITE_PROFILES.get(site_id) if site_id else None
 
-    station_master = build_station_master(DEFAULT_STATIONS, DEFAULT_SEED)
+    station_master = build_station_master(DEFAULT_STATIONS, DEFAULT_SEED, site_profile)
     vehicles = generate_vehicle_contexts(
         days=DEFAULT_DAYS,
         shifts_per_day=DEFAULT_SHIFTS_PER_DAY,
         units_per_shift=DEFAULT_UNITS_PER_SHIFT,
         seed=DEFAULT_SEED,
+        site_profile=site_profile,
     )
     station_events = simulate_station_events(
         station_master=station_master,
         vehicles=vehicles,
         units_per_shift=DEFAULT_UNITS_PER_SHIFT,
         seed=DEFAULT_SEED,
+        site_profile=site_profile,
     )
     write_outputs(station_master, station_events, vehicles, data_dir)
 
 
-def load_datasets(data_dir: Path = DATA_DIR) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def load_datasets(data_dir: Path = DATA_DIR, site_id: str | None = None) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Load station metadata, station-event telemetry, and vehicle quality rows."""
-    ensure_data_exists(data_dir)
+    ensure_data_exists(data_dir, site_id)
 
     station_master = pd.read_csv(data_dir / "station_master.csv")
     station_events = pd.read_csv(data_dir / "synthetic_station_events.csv")
@@ -388,7 +394,13 @@ def train_defect_model(
         .head(15)
     )
 
+    fraction_of_positives, mean_predicted_value = calibration_curve(y_test, probabilities, n_bins=10)
+
     metrics: dict[str, Any] = {
+        "calibration_curve": {
+            "mean_predicted_value": mean_predicted_value.tolist(),
+            "fraction_of_positives": fraction_of_positives.tolist(),
+        },
         "roc_auc": float(roc_auc_score(y_test, probabilities)),
         "average_precision": float(average_precision_score(y_test, probabilities)),
         "positive_rate": float(y.mean()),
@@ -418,6 +430,80 @@ def likely_driver(row: pd.Series) -> str:
         return "Low-confidence sparse telemetry"
     return "Distributed process variation"
 
+
+
+def explain_vehicle_risk(model: Pipeline, features: pd.DataFrame, vehicle_ids: list[str], top_n: int = 3) -> pd.DataFrame:
+    try:
+        import shap
+    except ImportError:
+        import logging
+        logging.warning("shap not installed. Falling back to default Likely_Driver heuristic.")
+        records = []
+        for vid in vehicle_ids:
+            row = features[features["Vehicle_ID"] == vid].iloc[0] if not features[features["Vehicle_ID"] == vid].empty else None
+            if row is not None:
+                records.append({
+                    "Vehicle_ID": vid,
+                    "Top_Drivers": [likely_driver(row)],
+                    "Driver_Directions": ["increases_risk"],
+                    "Measured_Or_Imputed": ["mixed"]
+                })
+        return pd.DataFrame(records)
+
+    numeric_features, categorical_features = model_feature_columns(features)
+    subset = features[features["Vehicle_ID"].isin(vehicle_ids)].copy()
+    if subset.empty:
+        return pd.DataFrame()
+    
+    X = subset[numeric_features + categorical_features]
+    preprocessor = model.named_steps["preprocessor"]
+    classifier = model.named_steps["classifier"]
+    
+    X_transformed = preprocessor.transform(X)
+    feature_names = preprocessor.get_feature_names_out()
+    clean_names = [name.replace("numeric__", "").replace("categorical__", "") for name in feature_names]
+    
+    explainer = shap.TreeExplainer(classifier)
+    shap_values = explainer.shap_values(X_transformed)
+    
+    if isinstance(shap_values, list):
+        shap_values = shap_values[1]
+    
+    records = []
+    for i, vid in enumerate(subset["Vehicle_ID"]):
+        row_shap = shap_values[i]
+        top_indices = np.argsort(np.abs(row_shap))[-top_n:][::-1]
+        
+        top_drivers = []
+        driver_directions = []
+        measured_flags = []
+        
+        for idx in top_indices:
+            feat_name = clean_names[idx]
+            top_drivers.append(feat_name)
+            driver_directions.append("increases_risk" if row_shap[idx] > 0 else "decreases_risk")
+            
+            # Simple heuristic for measured vs imputed based on feature name and vehicle missing rates
+            is_imputed = False
+            if "Temperature" in feat_name and subset.iloc[i].get("Temperature_Missing_Rate", 0) > 0:
+                is_imputed = True
+            elif "Vibration" in feat_name and subset.iloc[i].get("Vibration_Missing_Rate", 0) > 0:
+                is_imputed = True
+            elif "Torque" in feat_name and subset.iloc[i].get("Torque_Missing_Rate", 0) > 0:
+                is_imputed = True
+            elif "Missing" in feat_name or "Imputed" in feat_name:
+                is_imputed = True
+                
+            measured_flags.append("imputed" if is_imputed else "measured")
+            
+        records.append({
+            "Vehicle_ID": vid,
+            "Top_Drivers": top_drivers,
+            "Driver_Directions": driver_directions,
+            "Measured_Or_Imputed": measured_flags
+        })
+        
+    return pd.DataFrame(records)
 
 def score_defect_risk(
     model: Pipeline,
@@ -683,6 +769,129 @@ def compute_station_health(
     return health.sort_values(["Bottleneck_Alert_Count", "Max_Cycle_Z"], ascending=False)
 
 
+
+def compute_instrumentation_priority(
+    station_health: pd.DataFrame,
+    imputed_events: pd.DataFrame,
+    feature_importance: pd.DataFrame,
+) -> pd.DataFrame:
+    df = station_health[station_health["Sensor_Coverage"].isin(["legacy", "manual_check"])].copy()
+    if df.empty:
+        return pd.DataFrame()
+        
+    records = []
+    max_alerts = df["Bottleneck_Alert_Count"].max()
+    if pd.isna(max_alerts) or max_alerts == 0:
+        max_alerts = 1.0
+        
+    area_importances = {"Body": 0, "Paint": 0, "Final Assembly": 0}
+    # a simple heuristic: sum up importance of any feature that isn't specifically station-tied, or is tied to the area
+    
+    for i, row in df.iterrows():
+        station_id = row["Station_ID"]
+        missing_rate = row.get("Missing_Telemetry_Rate", 0.0)
+        
+        # Calculate importance weight
+        # Find features related to this station. Example: ST12_Temperature_C
+        station_num = row["Station_Number"]
+        related_features = feature_importance[feature_importance["feature"].str.contains(f"ST{station_num}_", case=False)]
+        
+        if not related_features.empty:
+            importance_weight = related_features["importance"].sum()
+        else:
+            # Fall back to area importance heuristic if station not explicitly in features
+            # E.g. Body_Cycle_Time_Mean
+            area = row["Process_Area"].replace(" ", "_")
+            area_features = feature_importance[feature_importance["feature"].str.contains(area, case=False)]
+            importance_weight = area_features["importance"].sum() if not area_features.empty else 0.05
+            
+        priority_score = missing_rate * importance_weight * (1 + row.get("Bottleneck_Alert_Count", 0) / max_alerts)
+        
+        op_lower = str(row["Operation"]).lower()
+        if "torque" in op_lower or "fasten" in op_lower or "weld" in op_lower:
+            recommended_sensor = "Torque/Current Sensor"
+            cost_tier = "medium"
+        elif "temperature" in op_lower or "paint" in op_lower or "oven" in op_lower or "booth" in op_lower:
+            recommended_sensor = "Temperature Probe"
+            cost_tier = "low"
+        elif "vibration" in op_lower or "motor" in op_lower or "marriage" in op_lower:
+            recommended_sensor = "Vibration Sensor"
+            cost_tier = "medium"
+        elif "vision" in op_lower or "check" in op_lower or "inspection" in op_lower or "quality" in op_lower:
+            recommended_sensor = "Computer Vision Camera"
+            cost_tier = "high"
+        else:
+            recommended_sensor = "Standard Cycle-Time Gateway"
+            cost_tier = "low"
+            
+        records.append({
+            "Station_ID": station_id,
+            "Process_Area": row["Process_Area"],
+            "Operation": row["Operation"],
+            "Missing_Rate": missing_rate,
+            "Importance_Weight": importance_weight,
+            "Priority_Score": priority_score,
+            "Recommended_Sensor": recommended_sensor,
+            "Estimated_Cost_Tier": cost_tier,
+        })
+        
+    priority_df = pd.DataFrame(records).sort_values("Priority_Score", ascending=False).reset_index(drop=True)
+    return priority_df
+
+
+def compute_daily_alert_validation(scored_vehicles: pd.DataFrame, threshold: float) -> pd.DataFrame:
+    rows = []
+    for day, group in scored_vehicles.groupby("Production_Day"):
+        y_true = group["Defect_Label"].values
+        probabilities = group["Defect_Probability"].values
+        predicted = probabilities >= threshold
+        
+        y_bool = y_true.astype(bool)
+        positive_count = int(y_bool.sum())
+        alert_count = int(predicted.sum())
+        true_positive_count = int((predicted & y_bool).sum())
+        false_positive_count = alert_count - true_positive_count
+        
+        precision = true_positive_count / alert_count if alert_count else 0.0
+        recall = true_positive_count / positive_count if positive_count else 0.0
+        false_alarm_rate = false_positive_count / alert_count if alert_count else 0.0
+        
+        rows.append({
+            "Production_Day": day,
+            "alerts": alert_count,
+            "true_positives": true_positive_count,
+            "precision": precision,
+            "recall": recall,
+            "false_alarm_rate": false_alarm_rate,
+        })
+    return pd.DataFrame(rows).sort_values("Production_Day")
+
+def compute_probability_drift(scored_vehicles: pd.DataFrame, window_days: int = 7) -> dict[str, float | bool]:
+    # A simple drift heuristic
+    daily_mean = scored_vehicles.groupby("Production_Day")["Defect_Probability"].mean()
+    if len(daily_mean) < 2:
+        return {"drift_detected": False, "recent_mean": 0.0, "historical_mean": 0.0}
+        
+    # Split into recent and historical
+    recent_window = daily_mean.iloc[-window_days:]
+    historical_window = daily_mean.iloc[:-window_days] if len(daily_mean) > window_days else daily_mean.iloc[:-1]
+    
+    recent_mean = float(recent_window.mean())
+    hist_mean = float(historical_window.mean())
+    hist_std = float(historical_window.std())
+    if pd.isna(hist_std) or hist_std == 0:
+        hist_std = 0.01
+        
+    # Flag drift if the mean shifts by more than 1.5x the historical std
+    drift_detected = abs(recent_mean - hist_mean) > (1.5 * hist_std)
+    
+    return {
+        "drift_detected": bool(drift_detected),
+        "recent_mean": recent_mean,
+        "historical_mean": hist_mean,
+        "historical_std": hist_std,
+    }
+
 def compute_business_metrics(
     imputed_events: pd.DataFrame,
     vehicle_summary: pd.DataFrame,
@@ -754,9 +963,15 @@ def run_pipeline(
     output_dir: Path | None = OUTPUT_DIR,
     threshold: float = 0.35,
     random_state: int = 42,
+    site_id: str | None = None,
 ) -> dict[str, Any]:
-    """Execute the full Phase 3 predictive engine."""
-    station_master, station_events, vehicle_summary = load_datasets(data_dir)
+    """Execute the full predictive engine."""
+    if site_id:
+        data_dir = data_dir / site_id
+        if output_dir is not None:
+            output_dir = output_dir / site_id
+            
+    station_master, station_events, vehicle_summary = load_datasets(data_dir, site_id)
     imputed_events = impute_station_telemetry(station_events)
     features = build_vehicle_features(imputed_events, vehicle_summary)
     model, metrics, feature_importance = train_defect_model(features, random_state=random_state)
@@ -764,6 +979,9 @@ def run_pipeline(
     bottleneck_events = detect_bottlenecks(imputed_events, random_state=random_state)
     station_health = compute_station_health(imputed_events, bottleneck_events)
     business_metrics = compute_business_metrics(imputed_events, vehicle_summary, scored_vehicles)
+    instrumentation_priority = compute_instrumentation_priority(station_health, imputed_events, feature_importance)
+    daily_alert_validation = compute_daily_alert_validation(scored_vehicles, threshold)
+    drift_check = compute_probability_drift(scored_vehicles, window_days=2)
 
     if output_dir is not None:
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -774,12 +992,15 @@ def run_pipeline(
         )
         station_health.to_csv(output_dir / "station_health.csv", index=False)
         features.to_csv(output_dir / "vehicle_features.csv", index=False)
+        instrumentation_priority.to_csv(output_dir / "instrumentation_priority.csv", index=False)
+        daily_alert_validation.to_csv(output_dir / "daily_alert_validation.csv", index=False)
         with (output_dir / "model_metrics.json").open("w", encoding="utf-8") as file:
             json.dump(
                 json_safe(
                     {
                         "defect_model": metrics,
                         "business_metrics": business_metrics,
+                        "drift_check": drift_check,
                     }
                 ),
                 file,

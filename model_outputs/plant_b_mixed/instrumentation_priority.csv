@@ -1,0 +1,19 @@
+Station_ID,Process_Area,Operation,Missing_Rate,Importance_Weight,Priority_Score,Recommended_Sensor,Estimated_Cost_Tier
+ST-19,Paint,E-coat inspection,1.0,0.09445384147754093,0.18890768295508187,Computer Vision Camera,high
+ST-26,Paint,Primer booth,1.0,0.09445384147754093,0.18553433147374113,Temperature Probe,low
+ST-28,Paint,Basecoat booth,1.0,0.09445384147754093,0.14842746517899288,Temperature Probe,low
+ST-27,Paint,Oven cure,1.0,0.09445384147754093,0.1416807622163114,Temperature Probe,low
+ST-17,Paint,Clearcoat booth,1.0,0.09445384147754093,0.13830741073497066,Temperature Probe,low
+ST-24,Paint,Paint quality gate,1.0,0.09445384147754093,0.13830741073497066,Temperature Probe,low
+ST-38,Final Assembly,Battery connect,1.0,0.03099395516480641,0.05423942153841122,Standard Cycle-Time Gateway,low
+ST-36,Final Assembly,End-of-line quality,1.0,0.03099395516480641,0.04870478668755293,Computer Vision Camera,high
+ST-03,Body,Roof laser weld,1.0,0.033138934334464076,0.04734133476352011,Torque/Current Sensor,medium
+ST-39,Final Assembly,Interior fit,1.0,0.03099395516480641,0.04649093274720962,Standard Cycle-Time Gateway,low
+ST-13,Body,Underbody weld,1.0,0.033138934334464076,0.04260720128716809,Torque/Current Sensor,medium
+ST-34,Final Assembly,Wheel torque,1.0,0.03099395516480641,0.03984937092617967,Torque/Current Sensor,medium
+ST-33,Final Assembly,Interior fit,1.0,0.03099395516480641,0.03874244395600802,Standard Cycle-Time Gateway,low
+ST-06,Body,Seam sealing prep,1.0,0.033138934334464076,0.037873067810816084,Standard Cycle-Time Gateway,low
+ST-37,Final Assembly,Powertrain marriage,1.0,0.03099395516480641,0.03763551698583635,Vibration Sensor,medium
+ST-43,Final Assembly,Powertrain marriage,1.0,0.03099395516480641,0.03763551698583635,Vibration Sensor,medium
+ST-44,Final Assembly,Battery connect,1.0,0.03099395516480641,0.0365285900156647,Standard Cycle-Time Gateway,low
+ST-40,Final Assembly,Wheel torque,1.0,0.03099395516480641,0.03542166304549304,Torque/Current Sensor,medium
