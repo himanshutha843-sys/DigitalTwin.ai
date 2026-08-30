@@ -187,16 +187,24 @@ with tab_manager:
 
     st.subheader(f"Ranked inspection queue (top {capacity} of {features.unit_id.nunique()} vehicles)")
     st.caption("Vehicles are ranked by defect-risk score from Layer 3, instead of uniform sampling.")
-    display_queue = queue.rename(columns={
+        display_queue = queue.rename(columns={
         "unit_id": "Unit", "defect_risk_score": "Risk score",
         "defect_flag": "Actually defective (sim ground truth)",
         "inspection_priority": "Priority"
     })
-    st.dataframe(
-        display_queue.style.background_gradient(subset=["Risk score"], cmap="Purples"),
-        use_container_width=True, hide_index=True
+
+    def _risk_text_color(val):
+        lo, hi = display_queue["Risk score"].min(), display_queue["Risk score"].max()
+        norm = (val - lo) / (hi - lo + 1e-9)
+        return "color: white" if norm > 0.55 else "color: black"
+
+    styled_queue = (
+        display_queue.style
+        .background_gradient(subset=["Risk score"], cmap="Purples")
+        .applymap(_risk_text_color, subset=["Risk score"])
     )
 
+    st.dataframe(styled_queue, use_container_width=True, hide_index=True)
 # ---------------------------------------------------------------------------
 # TAB 3 -- Leadership: rollout business case / impact summary
 # ---------------------------------------------------------------------------
