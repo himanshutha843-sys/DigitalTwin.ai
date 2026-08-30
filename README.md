@@ -1,99 +1,154 @@
-# DigitalTwin.ai — Predictive Digital Twin for Vehicle Assembly Lines
-**Team Himanshu6030** · Himanshu Thakur (BSBE, IIT Guwahati) · Deepak Yadav (ECE, IIT Guwahati)
+# DigitalTwin.ai
 
-> A live, honest picture of the line — not a perfect one.
+DigitalTwin.ai is a read-only predictive digital twin for mixed-model vehicle assembly lines. It turns uneven plant-floor data into early bottleneck alerts, delayed-defect attribution, and role-specific decisions for supervisors, plant managers, and leadership.
 
----
+The prototype targets a 30 to 50 station vehicle line across body, paint, and final assembly. It is built around real operating constraints: legacy equipment, partial instrumentation, manual checks, delayed end-of-line quality signals, and strict OT rules that prevent PLC changes outside maintenance windows.
 
-## 🎯 Problem
+## Project Hook
 
-On a mixed-model vehicle assembly line (30–50 stations across body construction, paint, and final assembly), a local bottleneck rarely stays local. A six-minute drift at one mid-line station can push 30–40 vehicles into the downstream queue before anyone notices — because inspection happens at fixed checkpoints, not continuously, and MES/PLC systems track throughput station-by-station without ever correlating it with the defects that show up later.
+Most factory dashboards show what already happened. DigitalTwin.ai scores what is becoming risky now, even when the data is incomplete.
 
-Two structural gaps make this worse:
-- **Uneven sensor coverage** — a majority of stations are well-instrumented; a meaningful minority rely on manual checks.
-- **Reactive detection** — plant teams only see the problem after a shift-end quality report, by which point the fix is rework, not prevention.
+## Architecture Overview
 
-## 💡 Proposed Solution
-
-A plant-floor digital twin built in **three layers**, fed by existing MES/PLC signals and manual entry where sensors don't exist:
-
-| Layer | Data In | Method | Output |
-|---|---|---|---|
-| **1. Live Line Model** | MES/PLC tags, manual entry forms, station heartbeat pings | Each station modeled as a node with cycle time, queue length, and status, refreshed on a short polling interval against a rolling multi-shift baseline | Real-time map of where work-in-progress is piling up |
-| **2. Bottleneck Detection** | Per-station cycle-time stream, queue growth | Control-chart-style thresholds flag drift from the rolling baseline; a queueing projection estimates downstream ripple in vehicles and minutes | Early drift alert + projected ripple window |
-| **3. Defect Prediction** | Torque, weld current, cycle-time variance, historical defect/rework logs | Lightweight classifier trained on labeled defect outcomes scores each vehicle's risk from its upstream process signature | Ranked inspection queue |
-
-**Confidence-aware fallback:** where sensor coverage is thin, the twin infers a station's state from neighboring stations' timing instead of guessing blind — and explicitly tags that inference as low-confidence, so plant teams know how much weight to give it.
-
-We deliberately stopped at three layers — each answers a question a supervisor actually asks (where's the work piling up, what's about to become a problem, which vehicles are worth a second look). A fourth layer, e.g. full physics simulation, would add modeling cost without changing floor-level decisions.
-
-## 🧪 Working Prototype
-
-The prototype demonstrates the core predictive mechanism on **simulated production data** (illustrative, not real enterprise data), since live PLC/MES access wasn't available for this round.
-
-- 40-station line (body/paint/final assembly), 6 shifts, 720 vehicles, with 3 injected drift/bottleneck events and realistic uneven sensor coverage (~63% full, ~14% partial, ~23% manual/no-sensor)
-- **Layer 1 — Live Line Model:** per-station snapshot with status classification (`nominal` / `watch` / `critical` / `no_data`)
-- **Layer 2 — Bottleneck Detection:** rolling-baseline control-chart thresholds (z-score > 3σ) flag drift, with a queueing-based ripple projection into downstream minutes and vehicles queued
-- **Confidence layer:** manual/no-sensor stations get their state inferred from neighboring instrumented stations' timing, explicitly tagged `low` confidence — never presented as measured data
-- **Layer 3 — Defect Prediction:** a gradient-boosted classifier trained on upstream torque/weld-current/cycle-time-variance features, validated on a held-out split (**ROC-AUC ≈ 0.83**), producing a ranked inspection queue
-- Result: targeting the top 15 highest-risk vehicles per shift (~2% of production) catches **~15% of all defects** — vs. the ~2% you'd expect from uniform random sampling at that same inspection capacity
-
-### Tech Stack
-Python · pandas / numpy · scikit-learn (GradientBoostingClassifier) · matplotlib
-
-### Repository Structure
-```
-├── data/
-│   └── simulate_line.py          # station roster + telemetry simulator, drift injection
-├── src/
-│   ├── live_line_model.py        # Layer 1: live station snapshot
-│   ├── bottleneck_detection.py   # Layer 2: control-chart drift + ripple projection
-│   ├── confidence_inference.py   # confidence-aware fallback for manual stations
-│   └── defect_prediction.py      # Layer 3: classifier + ranked inspection queue
-├── demo/
-│   ├── run_demo.py               # end-to-end orchestration + stakeholder views
-│   └── output/                   # generated CSVs + summary chart
-├── requirements.txt
-└── README.md
+```text
+data_simulator.py
+    |
+    |-- data/station_master.csv
+    |-- data/synthetic_station_events.csv
+    |-- data/vehicle_quality_summary.csv
+    v
+twin_model.py
+    |
+    |-- telemetry imputation for legacy/manual stations
+    |-- Random Forest defect-risk model
+    |-- SPC + Isolation Forest bottleneck detection
+    |-- OEE, MTBF, and savings metrics
+    v
+model_outputs/
+    |
+    |-- defect_risk_scores.csv
+    |-- bottleneck_alerts.csv
+    |-- station_health.csv
+    |-- model_metrics.json
+    v
+app.py
+    |
+    |-- Supervisor View
+    |-- Plant Manager View
+    |-- Leadership View
 ```
 
-### How to Run
-```bash
+## What the Prototype Demonstrates
+
+- A 45-station assembly line with modern, partial, legacy, and manual-check stations.
+- Intentional telemetry gaps and nulls for realistic uneven sensor coverage.
+- A delayed multi-causal defect pattern: elevated Station 12 temperature plus Station 15 vibration creates defects detected later at Station 45.
+- Imputation that uses station medians, process-area medians, global fallback, and missingness flags.
+- Defect probability scores with adjustable alert thresholds for false-alarm control.
+- Bottleneck detection using statistical process control and Isolation Forest anomaly detection.
+- Supervisor, plant manager, and leadership views from the same underlying digital twin.
+
+## Repository Structure
+
+```text
+.
+|-- BUSINESS_PROPOSAL.md          # Phase 1 business proposal
+|-- data_simulator.py             # Phase 2 synthetic data generator
+|-- twin_model.py                 # Phase 3 predictive engine
+|-- app.py                        # Phase 4 Streamlit dashboard
+|-- README.md                     # Phase 5 project guide
+|-- requirements.txt
+|-- data/
+|   |-- station_master.csv
+|   |-- synthetic_station_events.csv
+|   |-- vehicle_quality_summary.csv
+|   `-- simulate_line.py          # earlier simulator retained for reference
+|-- dashboard/
+|   `-- app.py                    # earlier dashboard retained for reference
+|-- demo/
+|   `-- run_demo.py
+`-- src/
+    |-- bottleneck_detection.py
+    |-- confidence_inference.py
+    |-- defect_prediction.py
+    `-- live_line_model.py
+```
+
+## Local Setup
+
+From the project directory:
+
+```powershell
+cd C:\Users\deepa\OneDrive\Desktop\digital_twin\DigitalTwin.ai
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python demo/run_demo.py
 ```
-This prints the floor-supervisor, plant-manager, and leadership views to the console and saves `demo/output/control_room_summary.png` (bottleneck detection, ripple projection, and defect-risk distribution) plus the underlying CSVs.
 
-### Interactive Dashboard
-For the demo video / live walkthrough, run the Streamlit control-room dashboard:
-```bash
+If Windows does not expose `python`, use the Python launcher:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-streamlit run dashboard/app.py
 ```
-Three tabs, matching the stakeholders in the pitch deck:
-- **👷 Floor Supervisor** — live station-status map (color = drift status, shape = sensor coverage), active drift alerts with projected delay/vehicles queued, and a confidence-coverage breakdown
-- **📋 Plant Manager** — cycle-time-vs-baseline trend for the most-flagged station, projected downstream delay by station, and the ranked inspection queue
-- **📊 Leadership** — model validation (held-out ROC-AUC, lift over uniform sampling), the 3-phase rollout roadmap, expected impact metrics, and sensor-coverage mix
 
-Sidebar controls let you re-roll the simulation seed and adjust inspection capacity per shift to show how the targeted queue adapts.
+## Run the Prototype
 
-## 📈 Rollout Plan
+Generate the synthetic plant-floor data:
 
-| Phase | Scope |
-|---|---|
-| **1 — Shadow Mode** | 2–3 pilot stations. Twin watches and flags but makes no changes to inspection or line operations; output compared against what actually happened. |
-| **2 — Line-Wide Advisory** | Bottleneck alerts and ripple projections go live across the full line, visible to plant supervisors — still a human decision every time. |
-| **3 — Targeted Routing** | Defect-risk scores actively route which vehicles get pulled for inspection, replacing uniform sampling with targeted sampling. |
+```powershell
+python data_simulator.py
+```
 
-**What we'd expect to move:** time to detect drift (minutes, not a shift-end report), downstream rework, inspection targeting, usable sensor coverage.
+Run the predictive engine:
 
-**Risks we're watching:** false-positive alerts eroding floor-level trust in the twin, and classifier drift as the line changes — both are why Phase 1 stays advisory-only and every score ships with a confidence tag.
+```powershell
+python twin_model.py
+```
 
-## 🎥 Demo Video
-*(link to be added)*
+Launch the dashboard:
 
-## 📄 Business Proposal
-See `/docs/business-proposal.md` *(or link to the full document once created)* for problem framing, business case, target users, and risk mitigations in full.
+```powershell
+streamlit run app.py
+```
 
----
-*Built for DigitalTwin.ai Round 2.*
+Then open the local Streamlit URL shown in the terminal, usually:
+
+```text
+http://localhost:8501
+```
+
+## Dashboard Views
+
+### Supervisor View
+
+- Real-time station status across the line.
+- Active bottleneck alerts with projected delay and queued vehicles.
+- High-probability defect warnings for current WIP.
+
+### Plant Manager View
+
+- Weekly aggregation of bottleneck alerts and defect rate.
+- Station health trends by alert volume and process area.
+- MTBF-style analytics based on repeated bottleneck event clusters.
+
+### Leadership View
+
+- OEE roll-up for availability, performance, and quality.
+- Model validation metrics including ROC-AUC and average precision.
+- Estimated annual cost savings from targeted defect prevention.
+- False-alarm threshold tradeoff for alert governance.
+
+## Business Proposal
+
+See [BUSINESS_PROPOSAL.md](BUSINESS_PROPOSAL.md) for the full business case, rollout plan, target-user value propositions, data-gap strategy, and risk mitigations.
+
+## Demo Video
+
+[Link to Demo Video]
+
+## Notes for Judges
+
+This is a simulated-data prototype. It is intentionally designed as a read-only advisory layer: no PLC writes, no control-loop changes, and no production routing automation without human approval. The goal is to show how a practical digital twin can create value even before a plant reaches perfect instrumentation maturity.
+
