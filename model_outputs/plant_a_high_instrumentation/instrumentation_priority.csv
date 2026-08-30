@@ -1,0 +1,11 @@
+Station_ID,Process_Area,Operation,Missing_Rate,Importance_Weight,Priority_Score,Recommended_Sensor,Estimated_Cost_Tier
+ST-16,Body,Door fit check,1.0,0.05,0.1,Computer Vision Camera,high
+ST-21,Paint,Oven cure,1.0,0.053019829830883845,0.08793532752439273,Temperature Probe,low
+ST-23,Paint,Clearcoat booth,1.0,0.053019829830883845,0.08146949461818738,Temperature Probe,low
+ST-03,Body,Roof laser weld,1.0,0.05,0.0804878048780488,Torque/Current Sensor,medium
+ST-04,Body,Door fit check,1.0,0.05,0.07560975609756099,Computer Vision Camera,high
+ST-28,Paint,Basecoat booth,1.0,0.053019829830883845,0.06983099538701774,Temperature Probe,low
+ST-07,Body,Underbody weld,1.0,0.05,0.06707317073170732,Torque/Current Sensor,medium
+ST-06,Body,Seam sealing prep,1.0,0.05,0.06585365853658537,Standard Cycle-Time Gateway,low
+ST-40,Final Assembly,Wheel torque,1.0,0.03717471293512559,0.05621541956043381,Torque/Current Sensor,medium
+ST-32,Final Assembly,Battery connect,1.0,0.03717471293512559,0.05349531861396121,Standard Cycle-Time Gateway,low

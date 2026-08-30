@@ -278,7 +278,7 @@ DigitalTwin.ai scales by maturity level:
 | Mixed instrumentation | Modern and legacy stations side by side | Use measured stations as anchors and infer legacy station state |
 | Low instrumentation | Sparse cycle-time and manual logs | Start with throughput, WIP, quality correlation, and targeted sensor roadmap |
 
-The platform becomes more accurate as more plants connect, but it does not require every site to be fully modernized before it creates value.
+The platform becomes more accurate as more plants connect, but it does not require every site to be fully modernized before it creates value. This scalability is demonstrated in the prototype's "Fleet Rollup" tab, which simulates three distinct site profiles side-by-side to prove that the architecture remains effective even with heavier legacy footprints.
 
 ## 5. Risks and Mitigations
 
@@ -294,6 +294,7 @@ Mitigations:
 - Track alert precision weekly and tune thresholds with supervisors.
 - Include confidence labels and "why this alert fired" explanations.
 - Begin in shadow mode so the system can be measured before it changes behavior.
+- Track daily alert precision and false-alarm rates in the Plant Manager view, coupled with an automated drift check that explicitly warns if the underlying probability distribution shifts from its historical baseline.
 
 ### Risk: Delayed Defect Attribution Is Ambiguous
 

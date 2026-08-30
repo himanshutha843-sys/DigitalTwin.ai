@@ -41,6 +41,47 @@ DEFAULT_UNITS_PER_SHIFT = 75
 DEFAULT_OUTPUT_DIR = Path("data")
 
 
+
+@dataclass(frozen=True)
+class SiteProfile:
+    name: str
+    station_count: int
+    coverage_probs_body: list[float]
+    coverage_probs_paint: list[float]
+    coverage_probs_final: list[float]
+    base_defect_logit: float
+    seed: int
+
+SITE_PROFILES = {
+    "plant_a_high_instrumentation": SiteProfile(
+        name="plant_a_high_instrumentation",
+        station_count=45,
+        coverage_probs_body=[0.56, 0.22, 0.15, 0.07],
+        coverage_probs_paint=[0.48, 0.24, 0.20, 0.08],
+        coverage_probs_final=[0.50, 0.25, 0.17, 0.08],
+        base_defect_logit=-4.15,
+        seed=42,
+    ),
+    "plant_b_mixed": SiteProfile(
+        name="plant_b_mixed",
+        station_count=45,
+        coverage_probs_body=[0.30, 0.30, 0.25, 0.15],
+        coverage_probs_paint=[0.30, 0.30, 0.30, 0.10],
+        coverage_probs_final=[0.30, 0.30, 0.30, 0.10],
+        base_defect_logit=-3.80,
+        seed=101,
+    ),
+    "plant_c_legacy_heavy": SiteProfile(
+        name="plant_c_legacy_heavy",
+        station_count=45, # Keep at 45 to not break ST-45 quality gate logic without rewriting more
+        coverage_probs_body=[0.10, 0.25, 0.45, 0.20],
+        coverage_probs_paint=[0.10, 0.25, 0.45, 0.20],
+        coverage_probs_final=[0.10, 0.25, 0.45, 0.20],
+        base_defect_logit=-3.40,
+        seed=202,
+    )
+}
+
 @dataclass(frozen=True)
 class ShiftWindow:
     name: str
@@ -108,8 +149,13 @@ def station_operation(area: str, station_number: int) -> str:
 def build_station_master(
     station_count: int = DEFAULT_STATIONS,
     seed: int = DEFAULT_SEED,
+    site_profile: SiteProfile | None = None,
 ) -> pd.DataFrame:
     """Create station metadata with deliberately uneven sensor coverage."""
+    if site_profile is not None:
+        station_count = site_profile.station_count
+        seed = site_profile.seed
+        
     if station_count < 30 or station_count > 50:
         raise ValueError("station_count must be between 30 and 50.")
     if station_count < 45:
@@ -123,13 +169,13 @@ def build_station_master(
 
         if area == "Body":
             cycle_base = rng.normal(64, 5)
-            coverage_probs = [0.56, 0.22, 0.15, 0.07]
+            coverage_probs = site_profile.coverage_probs_body if site_profile else [0.56, 0.22, 0.15, 0.07]
         elif area == "Paint":
             cycle_base = rng.normal(88, 7)
-            coverage_probs = [0.48, 0.24, 0.20, 0.08]
+            coverage_probs = site_profile.coverage_probs_paint if site_profile else [0.48, 0.24, 0.20, 0.08]
         else:
             cycle_base = rng.normal(72, 6)
-            coverage_probs = [0.50, 0.25, 0.17, 0.08]
+            coverage_probs = site_profile.coverage_probs_final if site_profile else [0.50, 0.25, 0.17, 0.08]
 
         coverage = rng.choice(
             ["modern", "partial", "legacy", "manual_check"],
@@ -189,7 +235,10 @@ def generate_vehicle_contexts(
     shifts_per_day: int,
     units_per_shift: int,
     seed: int,
+    site_profile: SiteProfile | None = None,
 ) -> pd.DataFrame:
+    if site_profile is not None:
+        seed = site_profile.seed
     """Build one row per vehicle with model mix and latent quality outcome."""
     rng = np.random.default_rng(seed + 101)
     total_vehicles = days * shifts_per_day * units_per_shift
@@ -245,7 +294,8 @@ def generate_vehicle_contexts(
 
         # A small baseline quality risk plus a strong interaction term. This
         # creates defects the model can learn without making failures too common.
-        defect_logit = -4.15 + 0.82 * interaction + model_penalty + random_process_noise
+        base_logit = site_profile.base_defect_logit if site_profile else -4.15
+        defect_logit = base_logit + 0.82 * interaction + model_penalty + random_process_noise
         eol_fail_probability = 1.0 / (1.0 + np.exp(-defect_logit))
         failed = rng.random() < eol_fail_probability
 
@@ -351,7 +401,10 @@ def simulate_station_events(
     vehicles: pd.DataFrame,
     units_per_shift: int,
     seed: int,
+    site_profile: SiteProfile | None = None,
 ) -> pd.DataFrame:
+    if site_profile is not None:
+        seed = site_profile.seed
     """Generate long-form per-vehicle, per-station production events."""
     rng = np.random.default_rng(seed + 202)
     records: list[dict[str, object]] = []

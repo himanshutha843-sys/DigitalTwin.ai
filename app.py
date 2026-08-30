@@ -21,6 +21,7 @@ from twin_model import (
     run_pipeline,
     score_defect_risk,
     station_snapshot_at,
+    explain_vehicle_risk,
 )
 
 
@@ -67,9 +68,7 @@ st.markdown(
 )
 
 
-@st.cache_resource(show_spinner="Running the digital twin pipeline")
-def load_pipeline(seed: int):
-    return run_pipeline(data_dir=DATA_DIR, output_dir=None, threshold=0.35, random_state=seed)
+
 
 
 def money(value: float) -> str:
@@ -147,11 +146,16 @@ def build_daily_summary(
     return daily
 
 
+site_id = st.sidebar.selectbox("Site", ["plant_a_high_instrumentation", "plant_b_mixed", "plant_c_legacy_heavy"])
 seed = st.sidebar.number_input("Model seed", min_value=1, max_value=999, value=42, step=1)
 alert_threshold = st.sidebar.slider("Defect alert threshold", 0.10, 0.80, 0.35, 0.05)
 wip_horizon = st.sidebar.slider("WIP horizon", 10, 80, 45, 5)
 
-pipeline = load_pipeline(int(seed))
+@st.cache_resource(show_spinner="Running the digital twin pipeline")
+def load_pipeline_site(seed: int, site_id: str):
+    return run_pipeline(data_dir=DATA_DIR, output_dir=None, threshold=0.35, random_state=seed, site_id=site_id)
+
+pipeline = load_pipeline_site(int(seed), site_id)
 station_master = pipeline["station_master"]
 vehicle_summary = pipeline["vehicle_summary"]
 features = pipeline["features"]
@@ -160,6 +164,9 @@ metrics = pipeline["metrics"]
 bottlenecks = pipeline["bottleneck_events"]
 station_health = pipeline["station_health"]
 imputed_events = pipeline["imputed_events"]
+instrumentation_priority = pipeline.get("instrumentation_priority")
+daily_alert_validation = pipeline.get("daily_alert_validation")
+drift_check = pipeline.get("drift_check")
 
 scored = score_defect_risk(model, features, threshold=alert_threshold)
 business = compute_business_metrics(imputed_events, vehicle_summary, scored)
@@ -177,8 +184,8 @@ current_index = st.sidebar.slider(
 st.title("DigitalTwin.ai Control Room")
 st.caption("Read-only predictive twin for a mixed-model vehicle assembly line")
 
-tab_supervisor, tab_manager, tab_leadership = st.tabs(
-    ["Supervisor View", "Plant Manager View", "Leadership View"]
+tab_supervisor, tab_manager, tab_leadership, tab_fleet = st.tabs(
+    ["Supervisor View", "Plant Manager View", "Leadership View", "Fleet Rollup"]
 )
 
 with tab_supervisor:
@@ -269,19 +276,22 @@ with tab_supervisor:
         if high_risk.empty:
             st.info("No vehicle exceeds the active alert threshold.")
             high_risk = wip.head(5)
-        st.dataframe(
-            high_risk[
-                [
-                    "Vehicle_ID",
-                    "Vehicle_Model",
-                    "Shift",
-                    "Risk_Percent",
-                    "Likely_Driver",
-                    "Telemetry_Confidence_Mean",
-                ]
-            ],
+        high_risk_display = high_risk[
+            [
+                "Vehicle_ID",
+                "Vehicle_Model",
+                "Shift",
+                "Risk_Percent",
+                "Likely_Driver",
+                "Telemetry_Confidence_Mean",
+            ]
+        ]
+        selection_event = st.dataframe(
+            high_risk_display,
             use_container_width=True,
             hide_index=True,
+            on_select="rerun",
+            selection_mode="single-row",
             column_config={
                 "Risk_Percent": st.column_config.ProgressColumn(
                     "Risk",
@@ -295,6 +305,21 @@ with tab_supervisor:
                 ),
             },
         )
+        
+        if selection_event and len(selection_event.selection.rows) > 0:
+            selected_idx = selection_event.selection.rows[0]
+            selected_vid = high_risk.iloc[selected_idx]["Vehicle_ID"]
+            
+            with st.expander(f"SHAP Explainer for {selected_vid}", expanded=True):
+                st.caption("Top drivers of predicted defect risk:")
+                explanation = explain_vehicle_risk(model, features, [selected_vid])
+                if not explanation.empty:
+                    exp_row = explanation.iloc[0]
+                    for d, dr, mi in zip(exp_row["Top_Drivers"], exp_row["Driver_Directions"], exp_row["Measured_Or_Imputed"]):
+                        direction_icon = "📈" if dr == "increases_risk" else "📉"
+                        mi_tag = "measured" if mi == "measured" else "imputed"
+                        st.markdown(f"- {direction_icon} **{d}** ({dr}, *{mi_tag}*)")
+
 
 with tab_manager:
     daily = build_daily_summary(vehicle_summary, bottlenecks)
@@ -334,6 +359,42 @@ with tab_manager:
         legend=dict(orientation="h", y=1.12),
     )
     st.plotly_chart(weekly_fig, use_container_width=True)
+    
+    if drift_check is not None and drift_check.get("drift_detected", False):
+        st.warning(f"⚠️ **Model Drift Detected**: Recent average defect probability ({drift_check['recent_mean']:.3f}) shifted from historical baseline ({drift_check['historical_mean']:.3f}). Retraining may be needed.")
+        
+    if daily_alert_validation is not None and not daily_alert_validation.empty:
+        st.subheader("Daily Alert Validation")
+        val_fig = go.Figure()
+        val_fig.add_trace(
+            go.Scatter(
+                x=daily_alert_validation["Production_Day"],
+                y=daily_alert_validation["precision"] * 100,
+                name="Precision",
+                mode="lines+markers",
+                line=dict(color=TEAL, width=3),
+                yaxis="y",
+            )
+        )
+        val_fig.add_trace(
+            go.Scatter(
+                x=daily_alert_validation["Production_Day"],
+                y=daily_alert_validation["false_alarm_rate"] * 100,
+                name="False-alarm rate",
+                mode="lines+markers",
+                line=dict(color=AMBER, width=3),
+                yaxis="y2",
+            )
+        )
+        val_fig.update_layout(
+            height=360,
+            margin=dict(l=10, r=10, t=25, b=10),
+            xaxis_title="Production day",
+            yaxis=dict(title="Precision %"),
+            yaxis2=dict(title="False-alarm rate %", overlaying="y", side="right"),
+            legend=dict(orientation="h", y=1.12),
+        )
+        st.plotly_chart(val_fig, use_container_width=True)
 
     health_left, health_right = st.columns([1, 1])
 
@@ -437,11 +498,36 @@ with tab_leadership:
         )
         coverage_fig.update_layout(margin=dict(l=10, r=10, t=25, b=10), legend_title="")
         st.plotly_chart(coverage_fig, use_container_width=True)
+        
+        if instrumentation_priority is not None and not instrumentation_priority.empty:
+            st.subheader("Top Stations to Instrument Next")
+            top_inst = instrumentation_priority.head(8).sort_values("Priority_Score", ascending=True)
+            inst_fig = px.bar(
+                top_inst,
+                x="Priority_Score",
+                y="Station_ID",
+                color="Estimated_Cost_Tier",
+                orientation="h",
+                hover_data=["Operation", "Recommended_Sensor"],
+                color_discrete_map={"low": TEAL, "medium": AMBER, "high": RED},
+                height=330,
+            )
+            inst_fig.update_layout(
+                margin=dict(l=10, r=10, t=25, b=10),
+                xaxis_title="Priority Score",
+                yaxis_title="",
+                legend_title="Cost Tier",
+            )
+            st.plotly_chart(inst_fig, use_container_width=True)
 
     threshold_df = pd.DataFrame(metrics["threshold_table"])
-    st.subheader("False-Alarm Threshold Tradeoff")
-    threshold_fig = go.Figure()
-    threshold_fig.add_trace(
+    
+    tradeoff_col, reliability_col = st.columns([1, 1])
+    
+    with tradeoff_col:
+        st.subheader("False-Alarm Threshold Tradeoff")
+        threshold_fig = go.Figure()
+        threshold_fig.add_trace(
         go.Scatter(
             x=threshold_df["threshold"],
             y=threshold_df["precision"] * 100,
@@ -450,7 +536,7 @@ with tab_leadership:
             line=dict(color=TEAL, width=3),
         )
     )
-    threshold_fig.add_trace(
+        threshold_fig.add_trace(
         go.Scatter(
             x=threshold_df["threshold"],
             y=threshold_df["recall"] * 100,
@@ -459,7 +545,7 @@ with tab_leadership:
             line=dict(color=LINE_BLUE, width=3),
         )
     )
-    threshold_fig.add_trace(
+        threshold_fig.add_trace(
         go.Scatter(
             x=threshold_df["threshold"],
             y=threshold_df["false_alarm_rate"] * 100,
@@ -468,11 +554,87 @@ with tab_leadership:
             line=dict(color=AMBER, width=3),
         )
     )
-    threshold_fig.update_layout(
+        threshold_fig.update_layout(
         height=330,
         margin=dict(l=10, r=10, t=25, b=10),
         xaxis_title="Probability threshold",
         yaxis_title="Validation metric %",
         legend=dict(orientation="h", y=1.12),
     )
-    st.plotly_chart(threshold_fig, use_container_width=True)
+        st.plotly_chart(threshold_fig, use_container_width=True)
+    
+    with reliability_col:
+        st.subheader("Model Reliability (Calibration)")
+        reliability_fig = go.Figure()
+        
+        calib_data = metrics.get("calibration_curve", {})
+        if calib_data:
+            mean_pred = calib_data.get("mean_predicted_value", [])
+            frac_pos = calib_data.get("fraction_of_positives", [])
+            
+            reliability_fig.add_trace(
+                go.Scatter(
+                    x=mean_pred,
+                    y=frac_pos,
+                    mode="lines+markers",
+                    name="Observed vs Predicted",
+                    line=dict(color=LINE_BLUE, width=3),
+                )
+            )
+            reliability_fig.add_trace(
+                go.Scatter(
+                    x=[0, 1],
+                    y=[0, 1],
+                    mode="lines",
+                    name="Perfect Calibration",
+                    line=dict(color=GRAY, width=2, dash="dash"),
+                )
+            )
+            reliability_fig.update_layout(
+                height=330,
+                margin=dict(l=10, r=10, t=25, b=10),
+                xaxis_title="Mean predicted probability",
+                yaxis_title="Fraction of positives",
+                legend=dict(orientation="h", y=1.12),
+            )
+            st.plotly_chart(reliability_fig, use_container_width=True)
+
+
+with tab_fleet:
+    st.header("Fleet Rollup")
+    st.caption("Side-by-side comparison across sites with different instrumentation maturity.")
+    
+    fleet_metrics = []
+    sites = ["plant_a_high_instrumentation", "plant_b_mixed", "plant_c_legacy_heavy"]
+    for s in sites:
+        res = load_pipeline_site(int(seed), s)
+        biz = res["business_metrics"]
+        met = res["metrics"]
+        fleet_metrics.append({
+            "Site": s,
+            "OEE (%)": biz["oee"] * 100,
+            "Defect Rate (%)": biz["defect_rate"] * 100,
+            "ROC-AUC": met["roc_auc"],
+            "Annual Savings ($)": biz["estimated_annual_savings_low"]
+        })
+    
+    fleet_df = pd.DataFrame(fleet_metrics)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        fig1 = px.bar(fleet_df, x="Site", y="OEE (%)", title="OEE Comparison", text_auto=".1f", color="Site")
+        fig1.update_layout(showlegend=False)
+        st.plotly_chart(fig1, use_container_width=True)
+        
+        fig2 = px.bar(fleet_df, x="Site", y="Defect Rate (%)", title="Defect Rate Comparison", text_auto=".2f", color="Site")
+        fig2.update_layout(showlegend=False)
+        st.plotly_chart(fig2, use_container_width=True)
+        
+    with col2:
+        fig3 = px.bar(fleet_df, x="Site", y="ROC-AUC", title="Model Performance (ROC-AUC)", text_auto=".3f", color="Site")
+        fig3.update_layout(showlegend=False)
+        st.plotly_chart(fig3, use_container_width=True)
+        
+        fig4 = px.bar(fleet_df, x="Site", y="Annual Savings ($)", title="Conservative Annual Savings", text_auto=".0s", color="Site")
+        fig4.update_layout(showlegend=False)
+        st.plotly_chart(fig4, use_container_width=True)

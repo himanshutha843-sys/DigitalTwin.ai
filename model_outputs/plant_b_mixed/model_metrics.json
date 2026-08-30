@@ -1,0 +1,216 @@
+{
+  "defect_model": {
+    "calibration_curve": {
+      "mean_predicted_value": [
+        0.04284031540417277,
+        0.13652685281257781,
+        0.24335315044332217,
+        0.3548339365965097,
+        0.4331370633017883,
+        0.5344056110617668,
+        0.6529993445968287,
+        0.7330402781405764
+      ],
+      "fraction_of_positives": [
+        0.02197802197802198,
+        0.0,
+        0.2,
+        0.0,
+        0.6,
+        0.25,
+        1.0,
+        1.0
+      ]
+    },
+    "roc_auc": 0.797339593114241,
+    "average_precision": 0.5122227516767826,
+    "positive_rate": 0.05444444444444444,
+    "validation_rows": 225,
+    "defect_rows": 49,
+    "feature_columns": [
+      "Cycle_Time_Mean",
+      "Cycle_Time_Std",
+      "Cycle_Time_Max",
+      "Cycle_Time_P95",
+      "Torque_Mean",
+      "Torque_Max",
+      "Temperature_Mean",
+      "Temperature_Max",
+      "Vibration_Mean",
+      "Vibration_Max",
+      "Torque_Missing_Rate",
+      "Temperature_Missing_Rate",
+      "Vibration_Missing_Rate",
+      "Sparse_Coverage_Rate",
+      "Legacy_Or_Manual_Imputed_Rate",
+      "Telemetry_Confidence_Mean",
+      "Body_Cycle_Time_Mean",
+      "Final_Assembly_Cycle_Time_Mean",
+      "Paint_Cycle_Time_Mean",
+      "ST12_Temperature_C",
+      "ST12_Cycle_Time",
+      "ST15_Vibration_MM_S",
+      "ST15_Cycle_Time",
+      "ST12_Temperature_Excess",
+      "ST15_Vibration_Excess",
+      "ST12_ST15_Interaction",
+      "Production_Day",
+      "Unit_In_Shift",
+      "Model_Complexity_Factor",
+      "Shift",
+      "Vehicle_Model"
+    ],
+    "threshold_table": [
+      {
+        "threshold": 0.15,
+        "alerts": 28.0,
+        "true_positives": 8.0,
+        "precision": 0.2857142857142857,
+        "recall": 0.6666666666666666,
+        "false_alarm_rate": 0.7142857142857143
+      },
+      {
+        "threshold": 0.25,
+        "alerts": 17.0,
+        "true_positives": 7.0,
+        "precision": 0.4117647058823529,
+        "recall": 0.5833333333333334,
+        "false_alarm_rate": 0.5882352941176471
+      },
+      {
+        "threshold": 0.35,
+        "alerts": 13.0,
+        "true_positives": 7.0,
+        "precision": 0.5384615384615384,
+        "recall": 0.5833333333333334,
+        "false_alarm_rate": 0.46153846153846156
+      },
+      {
+        "threshold": 0.5,
+        "alerts": 7.0,
+        "true_positives": 4.0,
+        "precision": 0.5714285714285714,
+        "recall": 0.3333333333333333,
+        "false_alarm_rate": 0.42857142857142855
+      },
+      {
+        "threshold": 0.65,
+        "alerts": 2.0,
+        "true_positives": 2.0,
+        "precision": 1.0,
+        "recall": 0.16666666666666666,
+        "false_alarm_rate": 0.0
+      }
+    ],
+    "classification_report_at_0_35": {
+      "0": {
+        "precision": 0.9764150943396226,
+        "recall": 0.971830985915493,
+        "f1-score": 0.9741176470588235,
+        "support": 213.0
+      },
+      "1": {
+        "precision": 0.5384615384615384,
+        "recall": 0.5833333333333334,
+        "f1-score": 0.56,
+        "support": 12.0
+      },
+      "accuracy": 0.9511111111111111,
+      "macro avg": {
+        "precision": 0.7574383164005805,
+        "recall": 0.7775821596244132,
+        "f1-score": 0.7670588235294118,
+        "support": 225.0
+      },
+      "weighted avg": {
+        "precision": 0.9530575713594581,
+        "recall": 0.9511111111111111,
+        "f1-score": 0.9520313725490197,
+        "support": 225.0
+      }
+    },
+    "top_features": [
+      {
+        "feature": "Paint_Cycle_Time_Mean",
+        "importance": 0.09445384147754093
+      },
+      {
+        "feature": "ST15_Vibration_MM_S",
+        "importance": 0.07014544279424721
+      },
+      {
+        "feature": "ST15_Cycle_Time",
+        "importance": 0.05833210226042428
+      },
+      {
+        "feature": "Vibration_Max",
+        "importance": 0.05788844993555532
+      },
+      {
+        "feature": "Cycle_Time_Mean",
+        "importance": 0.057098057033800026
+      },
+      {
+        "feature": "ST15_Vibration_Excess",
+        "importance": 0.051106882461006045
+      },
+      {
+        "feature": "ST12_ST15_Interaction",
+        "importance": 0.04489931218449032
+      },
+      {
+        "feature": "ST12_Temperature_C",
+        "importance": 0.044728010588102586
+      },
+      {
+        "feature": "Vibration_Mean",
+        "importance": 0.04234963454924659
+      },
+      {
+        "feature": "Cycle_Time_P95",
+        "importance": 0.04073213757601807
+      },
+      {
+        "feature": "ST12_Cycle_Time",
+        "importance": 0.03635257915578393
+      },
+      {
+        "feature": "Body_Cycle_Time_Mean",
+        "importance": 0.033138934334464076
+      },
+      {
+        "feature": "Cycle_Time_Std",
+        "importance": 0.03311412463538981
+      },
+      {
+        "feature": "Final_Assembly_Cycle_Time_Mean",
+        "importance": 0.03099395516480641
+      },
+      {
+        "feature": "Torque_Mean",
+        "importance": 0.029906636596004562
+      }
+    ]
+  },
+  "business_metrics": {
+    "total_vehicles": 900.0,
+    "failed_vehicles": 49.0,
+    "defect_rate": 0.05444444444444444,
+    "availability": 0.9899538278015713,
+    "performance": 0.9959529734978902,
+    "quality": 0.9455555555555556,
+    "oee": 0.9322680967992544,
+    "high_risk_alerts": 60.0,
+    "true_positive_alerts": 44.0,
+    "expected_random_hits": 3.2666666666666666,
+    "incremental_defects_caught": 40.733333333333334,
+    "estimated_annual_savings_low": 1980092.5925925921,
+    "estimated_annual_savings_high": 3111574.074074074
+  },
+  "drift_check": {
+    "drift_detected": false,
+    "recent_mean": 0.05743851562482337,
+    "historical_mean": 0.10500218019045782,
+    "historical_std": 0.07756618409230098
+  }
+}
